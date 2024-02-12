@@ -1,0 +1,550 @@
+---
+title: "Final_Project_KuanYu_Chi"
+author: "KuanYu_Chi"
+date: "2022-12-16"
+output: html_document
+---
+
+```{r setup ,message=FALSE, warning=FALSE, echo=TRUE}
+################################################################################
+############################# Include Library  #################################
+################################################################################
+library(rmarkdown)
+library(readxl)
+library(tidyverse)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+library(magrittr)
+library(pandoc)
+library(car)
+library(RColorBrewer)
+library(kableExtra)
+
+library(corrplot)
+library(ggcorrplot)
+
+################################################################################
+############################### Read File  #####################################
+################################################################################
+Cars_Data<- read_csv("new-used-cars-dataset.csv")
+```
+
+```{r function, message=FALSE, warning=FALSE, echo=TRUE}
+################################################################################
+########################### Create Function  ###################################
+################################################################################
+CAL_data = function(x){
+  mean_value = round(mean(x,na.rm=TRUE),2)
+  sd_value   = round(sd(x,na.rm=TRUE),2)
+  min_value = round(min(x,na.rm=TRUE),2)
+  median_value = round(median(x,na.rm=TRUE),2)
+  max_value = round(max(x,na.rm=TRUE),2)
+  range_value = max_value - min_value
+  
+  return_list=c(mean_value,sd_value,min_value,median_value,max_value,range_value) 
+  return(return_list)
+}
+```
+
+```{r clean data ,message=FALSE, warning=FALSE, echo=TRUE}
+################################################################################
+################################ Clean Data  ###################################
+################################################################################
+Mileages=Cars_Data$Mileages
+Reviews=Cars_Data$Reviews
+PriceDrop=Cars_Data$`price drop`
+Price=Cars_Data$Price
+Name=Cars_Data$`Car Names`
+Rate=Cars_Data$Ratings
+Used=Cars_Data$`used/certified`
+
+Reviews_New=c()
+Mileages_New=c()
+PriceDrop_New=c()
+Price_New=c()
+Name_New=c()
+Rate_New=c()
+Used_New=c()
+CleanList=c()
+
+i=1
+for(value_1 in Mileages){
+  if(value_1 != 'Mileage'){
+    Mileages_New=append(Mileages_New,value_1)
+    Reviews_New=append(Reviews_New,Reviews[i])
+    PriceDrop_New=append(PriceDrop_New,PriceDrop[i])
+    Price_New=append(Price_New,Price[i])
+    Name_New=append(Name_New,Name[i])
+    Rate_New=append(Rate_New,Rate[i])
+    Used_New=append(Used_New,Used[i])
+    i=i+1
+  }else{
+    CleanList=append(CleanList,i)
+    i=i+1
+  }
+}
+
+Mileages_New=as.numeric(Mileages_New)
+Reviews_New=as.numeric(Reviews_New)
+Price_New=as.numeric(Price_New)
+################################################################################
+########################## Create dummy variables ##############################
+################################################################################
+Used_New_Dummy=c()
+j=1
+
+for(value_2 in Used_New){
+  if(value_2 == "Used"){
+    Used_New_Dummy=append(Used_New_Dummy,0)# Used = 0
+    j=j+1
+  }else{
+    Used_New_Dummy=append(Used_New_Dummy,1)# Other Brands Used = 1
+    j=j+1
+  }
+}
+```
+
+```{r create factors ,message=FALSE, warning=FALSE, echo=TRUE}
+################################################################################
+################# Create years, brands, cars type table ########################
+################################################################################
+Years=c()
+Brands=c()
+Car_Types=c()
+for(value in Name_New){
+  TO=str_split(value, pattern=" ",n=3,simplify = TRUE)
+  Year=TO[1]
+  Brand=TO[2]
+  Car_Type=TO[3]
+  Years=append(Years,Year)
+  Brands=append(Brands,Brand)
+  Car_Types=append(Car_Types,Car_Type)
+}
+```
+
+```{r create graphs ,message=FALSE, warning=FALSE, echo=TRUE}
+################################################################################
+####################### Create basic information table #########################
+################################################################################
+
+MILE_Data=CAL_data(Mileages_New)
+RE_Data=CAL_data(Reviews_New)
+PD_Data=CAL_data(PriceDrop_New)
+P_Data=CAL_data(Price_New)
+RA_Data=CAL_data(Rate_New)
+
+MX=matrix(c(MILE_Data,RE_Data,RA_Data,PD_Data,P_Data),nrow = 6,byrow = F)
+colnames(MX)=c("Mileages","Reviews","Rating","PriceDrop","Price")
+rownames(MX)=c("mean","sd","min","median","max","range")
+knitr::kable(MX, digits = 2,format = "html",align = "c",caption ="<center><strong>Data_KuanYu_Chi</strong></center>",
+             table.attr = "style='width:75%;height:175%;border-width:3px;background:skyblue;margin-top:5px'")%>%
+kable_classic(bootstrap_options = "striped",full_width=TRUE,position="center",font_size=15)
+
+################################################################################
+####################### Create years & brands bar plot #########################
+################################################################################
+Year_NUM=table(Years)
+Year_NUM_13=head(Year_NUM,13)
+Year_NUM_10=tail(Year_NUM,10)
+
+Year_bar_1=barplot(Year_NUM_13,main="Cars_Year_KuanYu_Chi",ylab="Years",
+               horiz = T,xlim=c(0,150),xlab="Numbers",las=1,cex.names = 0.8,
+               col=brewer.pal(12,"Set3"))
+text(Year_NUM_13,Year_bar_1,Year_NUM_13,cex = 0.8, pos = 4)
+
+Year_bar_2=barplot(Year_NUM_10,main="Cars_Year_KuanYu_Chi",ylab="Years",
+               horiz = T,xlim=c(0,3000),xlab="Numbers",las=1,cex.names = 0.8,
+               col=brewer.pal(12,"Set3"))
+text(Year_NUM_10,Year_bar_2,Year_NUM_10,cex = 0.8, pos = 4)
+
+Brand_NUM=table(Brands)
+Brand_NUM_14=Brand_NUM[c(1:14)]
+Brand_NUM_14_1=Brand_NUM[c(28:41)]
+Brand_NUM_13=Brand_NUM[c(15:27)]
+
+par(mfcol=c(1,1),mai=c(0,0,0,0), mar=c(5,5,2,2))
+Brand_bar_1=barplot(Brand_NUM_14,main="Car_Brand_KuanYu_Chi",ylab="",
+               horiz = T,xlim=c(0,1000),xlab="Numbers",las=1,cex.names = 0.8,
+               col=brewer.pal(12,"Set3"))
+text(Brand_NUM_14,Brand_bar_1,Brand_NUM_14,cex = 0.8, pos = 4)
+
+par(mfcol=c(1,1),mai=c(0,0,0,0), mar=c(5,5,2,2))
+Brand_bar_2=barplot(Brand_NUM_14_1,main="Car_Brand_KuanYu_Chi",ylab="",
+               horiz = T,xlim=c(0,1200),xlab="Numbers",las=1,cex.names = 0.8,
+               col=brewer.pal(12,"Set3"))
+text(Brand_NUM_14_1,Brand_bar_1,Brand_NUM_14_1,cex = 0.8, pos = 4)
+
+par(mfcol=c(1,1),mai=c(0,0,0,0), mar=c(5,5,2,2))
+Brand_bar_3=barplot(Brand_NUM_13,main="Car_Brand_KuanYu_Chi",ylab="",
+               horiz = T,xlim=c(0,1000),xlab="Numbers",las=1,cex.names = 0.8,
+               col=brewer.pal(12,"Set3"))
+text(Brand_NUM_13,Brand_bar_3,Brand_NUM_13,cex = 0.8, pos = 4)
+```
+
+```{r years analysis ,message=FALSE, warning=FALSE, echo=TRUE}
+################################################################################
+########################### Years analysis and t.test ##########################
+################################################################################
+Price_2017_2018=c()
+Price_2019_2020=c()
+Price_2021_2022=c()
+Price_2017=c()
+Price_2018=c()
+Price_2019=c()
+Price_2020=c()
+Price_2021=c()
+Price_2022=c()
+
+options(scipen = 999)
+par(mfcol=c(1,1),mai=c(0,0,0,0), mar=c(5,5,2,2),cex.axis=0.5)
+boxplot(Price_New~Years,las =2,cex.names=0.5, horizontal = F,
+        main="Years_Price_KuanYu_Chi",xlab="Years",ylim = c(0,100000),
+        ylab="Price",col=brewer.pal(12,"Set3"),border = "red")
+
+k=1
+for (value_3 in Years){
+  if (value_3 == "2017" || value_3 ==  "2018"){
+    Price_2017_2018=append(Price_2017_2018,Price_New[k])
+    k=k+1
+  }else if (value_3 == "2019" || value_3 ==  "2020"){
+    Price_2019_2020=append(Price_2019_2020,Price_New[k])
+    k=k+1
+  }else if (value_3 == "2021" || value_3 == "2022"){
+    Price_2021_2022=append(Price_2021_2022,Price_New[k])
+    k=k+1
+  }else{
+    k=k+1
+  }
+}
+
+l=1
+for (value_3 in Years){
+  if (value_3 == "2017"){
+    Price_2017=append(Price_2017,Price_New[l])
+    l=l+1
+  }else if (value_3 == "2018"){
+    Price_2018=append(Price_2018,Price_New[l])
+    l=l+1
+  }else if (value_3 == "2019"){
+    Price_2019=append(Price_2019,Price_New[l])
+    l=l+1
+  }else if (value_3 == "2020"){
+    Price_2020=append(Price_2020,Price_New[l])
+    l=l+1
+  }else if (value_3 == "2021"){
+    Price_2021=append(Price_2021,Price_New[l])
+    l=l+1
+  }else if (value_3 == "2022"){
+    Price_2022=append(Price_2022,Price_New[l])
+    l=l+1
+  }else{
+    l=l+1
+  }
+}
+# 2017-2018 one simple t.test
+t.test(Price_2017_2018,mu=mean(Price_2017_2018),alternative = "two.sided", var.equal = FALSE, paired = FALSE, conf.level = 0.95)
+t.test(Price_2017_2018,mu=mean(Price_2017_2018)+sd(Price_2017_2018),alternative = "two.sided", var.equal = FALSE, paired = FALSE, conf.level = 0.95)
+t.test(Price_2017_2018,mu=mean(Price_2017_2018)-sd(Price_2017_2018),alternative = "two.sided", var.equal = FALSE, paired = FALSE, conf.level = 0.95)
+t.test(Price_2017_2018,mu=36000,alternative = "two.sided", var.equal = FALSE, paired = FALSE, conf.level = 0.95)
+# 2019-2020 one simple t.test
+t.test(Price_2019_2020,mu=mean(Price_2019_2020),alternative = "two.sided", var.equal = FALSE, paired = FALSE, conf.level = 0.95)
+t.test(Price_2019_2020,mu=mean(Price_2019_2020)+sd(Price_2019_2020),alternative = "two.sided", var.equal = FALSE, paired = FALSE, conf.level = 0.95)
+t.test(Price_2019_2020,mu=mean(Price_2019_2020)-sd(Price_2019_2020),alternative = "two.sided", var.equal = FALSE, paired = FALSE, conf.level = 0.95)
+t.test(Price_2019_2020,mu=40000,alternative = "two.sided", var.equal = FALSE, paired = FALSE, conf.level = 0.95)
+# 2021-2022 one simple t.test
+t.test(Price_2021_2022,mu=mean(Price_2021_2022),alternative = "two.sided", var.equal = FALSE, paired = FALSE, conf.level = 0.95)
+t.test(Price_2021_2022,mu=mean(Price_2021_2022)+sd(Price_2021_2022),alternative = "two.sided", var.equal = FALSE, paired = FALSE, conf.level = 0.95)
+t.test(Price_2021_2022,mu=mean(Price_2021_2022)-sd(Price_2021_2022),alternative = "two.sided", var.equal = FALSE, paired = FALSE, conf.level = 0.95)
+t.test(Price_2021_2022,mu=57000,alternative = "two.sided", var.equal = FALSE, paired = FALSE, conf.level = 0.95)
+
+# two samples t.test
+t.test(Price_2017_2018,Price_2019_2020,alternative = "two.sided", var.equal = FALSE, paired = FALSE, conf.level = 0.95)
+t.test(Price_2017_2018,Price_2021_2022,alternative = "two.sided", var.equal = FALSE, paired = FALSE, conf.level = 0.95)
+t.test(Price_2019_2020,Price_2021_2022,alternative = "two.sided", var.equal = FALSE, paired = FALSE, conf.level = 0.95)
+
+Six_Years_Price=list(Price_2017_2018,Price_2019_2020,Price_2021_2022)
+names(Six_Years_Price)=c("2017~2018","2019~2020","2021~2022")
+
+Six_Years_Price_1=list(Price_2017,Price_2018,Price_2019,Price_2020,Price_2021,Price_2022)
+names(Six_Years_Price_1)=c("2017","2018","2019","2020","2021","2022")
+options(scipen = 999)
+boxplot(Six_Years_Price,las =1,cex.names=1, horizontal = F,
+        main="Years_Cars_Price_KuanYu_Chi",xlab="Years",ylim = c(0,150000),
+        ylab="Price",col=brewer.pal(12,"Set3"),border = "red")
+boxplot(Six_Years_Price_1,las =1,cex.names=1, horizontal = F,
+        main="Years_Cars_Price_KuanYu_Chi",xlab="Years",ylim = c(0,150000),
+        ylab="Price",col=brewer.pal(12,"Set3"),border = "red")
+```
+
+```{r brands analysis ,message=FALSE, warning=FALSE, echo=TRUE}
+################################################################################
+######################### brands analysis correlation ##########################
+################################################################################
+Toyota_Price=c()
+Honda_Price=c()
+BMW_Price=c()
+Ford_Price=c()
+Benz_Price=c()
+
+Toyota_Year=c()
+Toyota_Mile=c()
+Toyota_Rate=c()
+Toyota_Pricedrop=c()
+
+Honda_Year=c()
+Honda_Mile=c()
+Honda_Rate=c()
+Honda_Pricedrop=c()
+
+BMW_Year=c()
+BMW_Mile=c()
+BMW_Rate=c()
+BMW_Pricedrop=c()
+
+Ford_Year=c()
+Ford_Mile=c()
+Ford_Rate=c()
+Ford_Pricedrop=c()
+
+Benz_Year=c()
+Benz_Mile=c()
+Benz_Rate=c()
+Benz_Pricedrop=c()
+
+m=1
+for (value_4 in Brands){
+  if (value_4 == "Toyota"){
+    Toyota_Price=append(Toyota_Price,Price_New[m])
+    Toyota_Year=append(Toyota_Year,Years[m])
+    Toyota_Mile=append(Toyota_Mile,Mileages_New[m])
+    Toyota_Rate=append(Toyota_Rate,Rate_New[m])
+    Toyota_Pricedrop=append(Toyota_Pricedrop,PriceDrop_New[m])
+    m=m+1
+  }else if (value_4 == "Honda"){
+    Honda_Price=append(Honda_Price,Price_New[m])
+    Honda_Year=append(Honda_Year,Years[m])
+    Honda_Mile=append(Honda_Mile,Mileages_New[m])
+    Honda_Rate=append(Honda_Rate,Rate_New[m])
+    Honda_Pricedrop=append(Honda_Pricedrop,PriceDrop_New[m])
+    m=m+1
+  }else if (value_4 == "BMW"){
+    BMW_Price=append(BMW_Price,Price_New[m])
+    BMW_Year=append(BMW_Year,Years[m])
+    BMW_Mile=append(BMW_Mile,Mileages_New[m])
+    BMW_Rate=append(BMW_Rate,Rate_New[m])
+    BMW_Pricedrop=append(BMW_Pricedrop,PriceDrop_New[m])
+    m=m+1
+  }else if (value_4 == "Ford"){
+    Ford_Price=append(Ford_Price,Price_New[m])
+    Ford_Year=append(Ford_Year,Years[m])
+    Ford_Mile=append(Ford_Mile,Mileages_New[m])
+    Ford_Rate=append(Ford_Rate,Rate_New[m])
+    Ford_Pricedrop=append(Ford_Pricedrop,PriceDrop_New[m])
+    m=m+1
+  }else if (value_4 == "Mercedes-Benz"){
+    Benz_Price=append(Benz_Price,Price_New[m])
+    Benz_Year=append(Benz_Year,Years[m])
+    Benz_Mile=append(Benz_Mile,Mileages_New[m])
+    Benz_Rate=append(Benz_Rate,Rate_New[m])
+    Benz_Pricedrop=append(Benz_Pricedrop,PriceDrop_New[m])
+    m=m+1
+  }else{
+    m=m+1
+  }
+}
+Toyota_Year=as.numeric(Toyota_Year)
+Honda_Year=as.numeric(Honda_Year)
+BMW_Year=as.numeric(BMW_Year)
+Ford_Year=as.numeric(Ford_Year)
+Benz_Year=as.numeric(Benz_Year)
+
+Toyota_data=data.frame(Toyota_Price,Toyota_Year,Toyota_Mile,Toyota_Rate,Toyota_Pricedrop)
+Honda_data=data.frame(Honda_Price,Honda_Year,Honda_Mile,Honda_Rate,Honda_Pricedrop)
+BMW_data=data.frame(BMW_Price,BMW_Year,BMW_Mile,BMW_Rate,BMW_Pricedrop)
+Ford_data=data.frame(Ford_Price,Ford_Year,Ford_Mile,Ford_Rate,Ford_Pricedrop)
+Benz_data=data.frame(Benz_Price,Benz_Year,Benz_Mile,Benz_Rate,Benz_Pricedrop)
+
+Western_Price=list(BMW_Price,Ford_Price,Benz_Price)
+names(Western_Price)=c("BMW","Ford","Mercedes-Benz")
+Japan_Price=list(Toyota_Price,Honda_Price)
+names(Japan_Price)=c("Toyota","Honda")
+
+options(scipen = 999)
+boxplot(Japan_Price,las =1,cex.names=0.5, horizontal = F,
+        main="Japan_Cars_Price_KuanYu_Chi",xlab="Brands",ylim = c(0,100000),
+        ylab="Price",col=brewer.pal(12,"Set3"),border = "red")
+boxplot(Western_Price,las =1,cex.names=0.5, horizontal = F,
+        main="Western_Cars_Price_KuanYu_Chi",xlab="Brands",ylim = c(0,150000),
+        ylab="Price",col=brewer.pal(12,"Set3"),border = "red")
+
+############################### #Price #########################################
+lm(Toyota_Price~Toyota_Year)
+summary(lm(Toyota_Price~Toyota_Year))
+plot(Toyota_Price~Toyota_Year,col=c("red"),cex=2,pch=1,
+     main="Toyota_Year_Price_KuanYu_Chi",xlab="Year",ylab="Price")
+abline(lm(Toyota_Price~Toyota_Year), col="black",lwd=2,lty=2)
+
+lm(Honda_Price~Honda_Year)
+summary(lm(Honda_Price~Honda_Year))
+plot(Honda_Price~Honda_Year,col=c("blue"),cex=2,pch=1,
+     main="Honda_Year_Price_KuanYu_Chi",xlab="Year",ylab="Price")
+abline(lm(Honda_Price~Honda_Year), col="black",lwd=2,lty=2)
+
+lm(BMW_Price~BMW_Year)
+summary(lm(BMW_Price~BMW_Year))
+plot(BMW_Price~BMW_Year,col=c("green"),cex=2,pch=1,
+     main="BMW_Year_Price_KuanYu_Chi",xlab="Year",ylab="Price")
+abline(lm(BMW_Price~BMW_Year), col="black",lwd=2,lty=2)
+
+lm(Ford_Price~Ford_Year)
+summary(lm(Ford_Price~Ford_Year))
+plot(Ford_Price~Ford_Year,col=c("black"),cex=2,pch=1,
+     main="Ford_Year_Price_KuanYu_Chi",xlab="Year",ylab="Price")
+abline(lm(Ford_Price~Ford_Year), col="black",lwd=2,lty=2)
+
+lm(Benz_Price~Benz_Year)
+summary(lm(Benz_Price~Benz_Year))
+plot(Benz_Price~Benz_Year,col=c("orange"),cex=2,pch=1,
+     main="Benz_Year_Price_KuanYu_Chi",xlab="Year",ylab="Price")
+abline(lm(Benz_Price~Benz_Year), col="black",lwd=2,lty=2)
+################################################################################
+
+############################### Mileage ########################################
+lm(Toyota_Price~Toyota_Mile)
+summary(lm(Toyota_Price~Toyota_Mile))
+plot(Toyota_Price~Toyota_Mile,col=c("red"),cex=2,pch=1,
+     main="Toyota_Mile_Price_KuanYu_Chi",xlab="Mile",ylab="Price")
+abline(lm(Toyota_Price~Toyota_Mile), col="black",lwd=2,lty=2)
+
+lm(Honda_Price~Honda_Mile)
+summary(lm(Honda_Price~Honda_Mile))
+plot(Honda_Price~Honda_Mile,col=c("blue"),cex=2,pch=1,
+     main="Honda_Mile_Price_KuanYu_Chi",xlab="Mile",ylab="Price")
+abline(lm(Honda_Price~Honda_Mile), col="black",lwd=2,lty=2)
+
+lm(BMW_Price~BMW_Mile)
+summary(lm(BMW_Price~BMW_Mile))
+plot(BMW_Price~BMW_Mile,col=c("green"),cex=2,pch=1,
+     main="BMW_Mile_Price_KuanYu_Chi",xlab="Mile",ylab="Price")
+abline(lm(BMW_Price~BMW_Mile), col="black",lwd=2,lty=2)
+
+lm(Ford_Price~Ford_Mile)
+summary(lm(Ford_Price~Ford_Mile))
+plot(Ford_Price~Ford_Mile,col=c("black"),cex=2,pch=1,
+     main="Ford_Mile_Price_KuanYu_Chi",xlab="Mile",ylab="Price")
+abline(lm(Ford_Price~Ford_Mile), col="black",lwd=2,lty=2)
+
+lm(Benz_Price~Benz_Mile)
+summary(lm(Benz_Price~Benz_Mile))
+plot(Benz_Price~Benz_Mile,col=c("orange"),cex=2,pch=1,
+     main="Benz_Mile_Price_KuanYu_Chi",xlab="Mile",ylab="Price")
+abline(lm(Benz_Price~Benz_Mile), col="black",lwd=2,lty=2)
+################################################################################
+
+################################# Rate #########################################
+lm(Toyota_Price~Toyota_Rate)
+summary(lm(Toyota_Price~Toyota_Rate))
+plot(Toyota_Price~Toyota_Rate,col=c("red"),cex=2,pch=1,
+     main="Toyota_Rate_Price_KuanYu_Chi",xlab="Rate",ylab="Price")
+abline(lm(Toyota_Price~Toyota_Rate), col="black",lwd=2,lty=2)
+
+lm(Honda_Price~Honda_Rate)
+summary(lm(Honda_Price~Honda_Rate))
+plot(Honda_Price~Honda_Rate,col=c("blue"),cex=2,pch=1,
+     main="Honda_Rate_Price_KuanYu_Chi",xlab="Rate",ylab="Price")
+abline(lm(Honda_Price~Honda_Rate), col="black",lwd=2,lty=2)
+
+lm(BMW_Price~BMW_Rate)
+summary(lm(BMW_Price~BMW_Rate))
+plot(BMW_Price~BMW_Rate,col=c("green"),cex=2,pch=1,
+     main="BMW_Rate_Price_KuanYu_Chi",xlab="Rate",ylab="Price")
+abline(lm(BMW_Price~BMW_Rate), col="black",lwd=2,lty=2)
+
+lm(Ford_Price~Ford_Rate)
+summary(lm(Ford_Price~Ford_Rate))
+plot(Ford_Price~Ford_Rate,col=c("black"),cex=2,pch=1,
+     main="Ford_Rate_Price_KuanYu_Chi",xlab="Rate",ylab="Price")
+abline(lm(Ford_Price~Ford_Rate), col="black",lwd=2,lty=2)
+
+lm(Benz_Price~Benz_Rate)
+summary(lm(Benz_Price~Benz_Rate))
+plot(Benz_Price~Benz_Rate,col=c("orange"),cex=2,pch=1,
+     main="Benz_Rate_Price_KuanYu_Chi",xlab="Rate",ylab="Price")
+abline(lm(Benz_Price~Benz_Rate), col="black",lwd=2,lty=2)
+################################################################################
+```
+
+```{r Heatmap ,message=FALSE, warning=FALSE, echo=TRUE}
+################################################################################
+############################# brands heat map ##################################
+################################################################################
+corrplot(cor(Toyota_data),method="ellipse")
+corrplot(cor(Honda_data,use = "complete.obs"),method="ellipse")
+corrplot(cor(BMW_data),method="ellipse")
+corrplot(cor(Ford_data),method="ellipse")
+corrplot(cor(Benz_data),method="ellipse")
+
+corrplot.mixed(cor(Toyota_data),lower = 'number', upper = 'ellipse')
+corrplot.mixed(cor(Honda_data,use = "complete.obs"),lower = 'number', upper = 'ellipse')
+corrplot.mixed(cor(BMW_data),lower = 'number', upper = 'ellipse')
+corrplot.mixed(cor(Ford_data),lower = 'number', upper = 'ellipse')
+corrplot.mixed(cor(Benz_data),lower = 'number', upper = 'ellipse')
+```
+
+```{r mileage analysis ,message=FALSE, warning=FALSE, echo=TRUE}
+################################################################################
+############################ Mileage analysis ##################################
+################################################################################
+Mileages_upper_price=c()
+Mileages_lower_price=c()
+Mileage_count=c()
+
+n=1
+for(value_5 in Mileages_New){
+  if (value_5 > mean(Mileages_New)){
+    Mileages_upper_price=append(Mileages_upper_price,Price_New[n])
+    Mileage_count=append(Mileage_count,"Mileage_upper_mean")
+    n=n+1
+  }else if(value_5 < mean(Mileages_New)){
+    Mileages_lower_price=append(Mileages_lower_price,Price_New[n])
+    Mileage_count=append(Mileage_count,"Mileage_lower_mean")
+    n=n+1
+  }else{
+    n=n+1
+  }
+}
+Mileages_Price=list(Mileages_upper_price,Mileages_lower_price)
+names(Mileages_Price)=c("Mileages_upper_mean","Mileages_lower_mean")
+
+t.test(Mileages_upper_price,mu=mean(Mileages_upper_price),alternative = "two.sided", var.equal = FALSE, paired = FALSE, conf.level = 0.95)
+t.test(Mileages_lower_price,mu=mean(Mileages_lower_price),alternative = "two.sided", var.equal = FALSE, paired = FALSE, conf.level = 0.95)
+
+t.test(Mileages_upper_price,Mileages_lower_price,alternative = "two.sided", var.equal = FALSE, paired = FALSE, conf.level = 0.95)
+
+par(mfcol=c(1,1),mai=c(0,0,0,0), mar=c(8,8,2,2))
+Mileage_table=table(Mileage_count)
+Mileage_Bar=barplot(Mileage_table,main="Car_Mileages_KuanYu_Chi",ylab="",
+               horiz = T,xlim=c(0,8000),xlab="Numbers",las=1,cex.names = 0.8,
+               col=brewer.pal(12,"Set3"))
+
+text(Mileage_table,Mileage_Bar,Mileage_table,cex = 0.8, pos = 4)
+
+options(scipen = 999)
+boxplot(Mileages_Price,las =1,cex.names=0.5, horizontal = F,
+        main="Mileages_Price_KuanYu_Chi",xlab="Mileage",ylim = c(0,150000),
+        ylab="Price",col=brewer.pal(12,"Set3"),border = "red")
+
+par(mfcol=c(1,1),mai=c(0,0,0,0), mar=c(5,10,2,2))
+plot(Price_New~Mileages_New,main="Mileage_Price_KuanYu_Chi",las =1,xlab="Mileage")
+abline(lm(Price_New~Mileages_New),col="red")
+```
+
+```{r Used analysis ,message=FALSE, warning=FALSE, echo=TRUE}
+par(mfcol=c(1,1),mai=c(0,0,0,0), mar=c(5,10,2,2),cex.axis=0.5)
+Used_T=table(Used_New)
+Used_T_bar=barplot(Used_T,main="Used_KuanYu_Chi",ylab="",horiz = T,xlim=c(0,10000),
+              xlab="Numbers", las=1, lab.names = 0.01,
+              col=brewer.pal(12,"Set3"))
+text(Used_T,Used_T_bar,Used_T,cex = 0.8, pos = 4)
+```
